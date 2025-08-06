@@ -20,7 +20,6 @@ HANDEDNESS_TEXT_COLOR = (0, 255, 0)
 
 cap = cv2.VideoCapture(0)
 # cap is a VideoCapture object
-# The parameter integer that specifies the device index for a live camera.(0)
 
 def draw_landmarks_on_image(rgb_image, detection_result):
     hand_landmarks_list = detection_result.hand_landmarks # returns a list of landmarks
