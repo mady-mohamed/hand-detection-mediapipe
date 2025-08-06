@@ -6,8 +6,10 @@ import numpy as np
 from mediapipe.tasks.python.vision.hand_landmarker import HandLandmarkerResult
 import cv2
 from collections import deque, defaultdict
+
+
 HISTORY_LEN = 5
-MOVEMENT_THRESHOLD = 0.02
+MOVEMENT_THRESHOLD = 0.01
 hand_x_history = defaultdict(lambda: deque(maxlen=HISTORY_LEN))
 
 
@@ -20,9 +22,8 @@ cap = cv2.VideoCapture(0)
 # cap is a VideoCapture object
 # The parameter integer that specifies the device index for a live camera.(0)
 
-def draw_landmarks_on_image(rgb_image, detection_result, hand_landmarks):
+def draw_landmarks_on_image(rgb_image, detection_result):
     hand_landmarks_list = detection_result.hand_landmarks # returns a list of landmarks
-    # print("Hand Landmark List", hand_landmarks_list)
     handedness_list = detection_result.handedness # detects if left or right hand
     annotated_image = np.copy(rgb_image)
 
@@ -33,6 +34,25 @@ def draw_landmarks_on_image(rgb_image, detection_result, hand_landmarks):
         handedness = handedness_list[idx]
 
         hand_state = "Closed" if is_hand_closed(hand_landmarks) else "Open"
+
+        height, width, _ = annotated_image.shape
+        wrist = hand_landmarks[0]
+        current_x = wrist.x
+
+        hand_label = handedness[0].category_name + f"_{idx}"
+        hist = hand_x_history[hand_label]
+        hist.append(current_x)
+        movement = 0.0
+
+        if len(hist) > 2:
+            movement = hist[-1] - hist[-2]
+
+        if movement > MOVEMENT_THRESHOLD:
+            direction_text = "Right"
+        elif movement < -MOVEMENT_THRESHOLD:
+            direction_text = "Left"
+        else:
+            direction_text = "Still"
 
         # Draw the hand landmarks.
         hand_landmarks_proto = landmark_pb2.NormalizedLandmarkList() #store landmark dat for MediaPipe
@@ -54,9 +74,15 @@ def draw_landmarks_on_image(rgb_image, detection_result, hand_landmarks):
         text_y = int(min(y_coordinates) * height) - MARGIN
 
         # Draw handedness (left or right hand) on the image.
-        cv2.putText(annotated_image, f"{handedness[0].category_name} ({hand_state})",
+        cv2.putText(annotated_image, f"{handedness[0].category_name} ({hand_state}) {direction_text}",
                     (text_x, text_y), cv2.FONT_HERSHEY_DUPLEX,
                     FONT_SIZE, HANDEDNESS_TEXT_COLOR, FONT_THICKNESS, cv2.LINE_AA)
+
+
+
+
+
+
 
     return annotated_image
 
@@ -92,7 +118,6 @@ def is_hand_closed(hand_landmarks):
 
         angle = angle_between_deg(v1, v2)
         # If the angle is large, the finger is considered straight (extended)
-        print("Angle", angle)
         if angle < 20:
             extended_count += 1
 
