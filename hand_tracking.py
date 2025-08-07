@@ -77,12 +77,6 @@ def draw_landmarks_on_image(rgb_image, detection_result):
                     (text_x, text_y), cv2.FONT_HERSHEY_DUPLEX,
                     FONT_SIZE, HANDEDNESS_TEXT_COLOR, FONT_THICKNESS, cv2.LINE_AA)
 
-
-
-
-
-
-
     return annotated_image
 
 def angle_between_deg(v1, v2):
@@ -154,17 +148,22 @@ VisionRunningMode = mp.tasks.vision.RunningMode
 # Create a hand landmarker instance with the image mode:
 options = HandLandmarkerOptions(
     base_options=BaseOptions(model_asset_path=model_path),
-    running_mode=VisionRunningMode.IMAGE, num_hands=2)
+    # running_mode=VisionRunningMode.IMAGE
+    running_mode=VisionRunningMode.VIDEO
+    ,num_hands=2)
 
 with HandLandmarker.create_from_options(options) as landmarker:
     if cap.isOpened():
+        frame_timestamp = 0
         while True:
             success, frame = cap.read()
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
-            hand_landmarker_result = landmarker.detect(mp_image)
+            # hand_landmarker_result = landmarker.detect(mp_image)
+            hand_landmarker_result = landmarker.detect_for_video(mp_image, frame_timestamp)
             annotated_image = draw_landmarks_on_image(mp_image.numpy_view(), hand_landmarker_result)
             bgr_image = cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR)
             cv2.imshow('Hand Landmarks Cam', bgr_image)
+            frame_timestamp += int(1000 / 30.0)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
