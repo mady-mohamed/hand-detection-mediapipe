@@ -15,6 +15,14 @@ This project uses [MediaPipe](https://developers.google.com/mediapipe) Hand Land
   - Open = ≥ 3 extended fingers.
   - Closed = < 3 extended fingers.
 - **Movement direction detection** using wrist horizontal position history.
+  - Tracks wrist X-position over the last few frames (`deque` with `HISTORY_LEN`).
+  - **Exponential smoothing** is applied to wrist position data to reduce jitter and make movement direction detection more stable.
+    - Formula: `smoothed = α * current + (1 - α) * previous`
+    - Lower `α` → smoother but more delayed response.
+  - Compares latest two smoothed positions:
+    - `Right` if movement > threshold
+    - `Left` if movement < -threshold
+    - `Still` otherwise
 
 ## Requirements
 - Python 3.8+
