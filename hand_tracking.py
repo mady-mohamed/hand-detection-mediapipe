@@ -9,7 +9,7 @@ from collections import deque, defaultdict
 
 
 HISTORY_LEN = 5
-MOVEMENT_THRESHOLD = 0.01
+MOVEMENT_THRESHOLD = 0.01 # decrease for sensitivity, increase to ignore subtle movement
 hand_x_history = defaultdict(lambda: deque(maxlen=HISTORY_LEN))
 
 
@@ -17,6 +17,8 @@ MARGIN = 10  # pixels
 FONT_SIZE = 1
 FONT_THICKNESS = 1
 HANDEDNESS_TEXT_COLOR = (0, 255, 0)
+prev_landmarks = None
+alpha = 0.01
 
 cap = cv2.VideoCapture(0)
 # cap is a VideoCapture object
@@ -47,9 +49,9 @@ def draw_landmarks_on_image(rgb_image, detection_result):
             movement = hist[-1] - hist[-2]
 
         if movement > MOVEMENT_THRESHOLD:
-            direction_text = "Right"
-        elif movement < -MOVEMENT_THRESHOLD:
             direction_text = "Left"
+        elif movement < -MOVEMENT_THRESHOLD:
+            direction_text = "Right"
         else:
             direction_text = "Still"
 
@@ -162,6 +164,18 @@ with HandLandmarker.create_from_options(options) as landmarker:
             # hand_landmarker_result = landmarker.detect(mp_image)
             hand_landmarker_result = landmarker.detect_for_video(mp_image, frame_timestamp)
             annotated_image = draw_landmarks_on_image(mp_image.numpy_view(), hand_landmarker_result)
+            if len(hand_landmarker_result.hand_landmarks) > 0:
+                curr_landmarks = hand_landmarker_result.hand_landmarks[0]
+                curr_hand_landmarks_np = np.array([[lm.x, lm.y, lm.z] for lm in curr_landmarks], dtype=np.float32)
+                if prev_landmarks is not None:
+                    smoothed_landmarks = alpha * curr_hand_landmarks_np + (1 - alpha) * prev_landmarks
+                    hand_landmarker_result.pose_landmarks[0] = smoothed_landmarks.tolist()
+                    annotated_image = draw_landmarks_on_image(mp_image.numpy_view(), hand_landmarker_result,
+                                                              smoothed_landmarks)
+                else:
+                    pass
+
+
             bgr_image = cv2.cvtColor(annotated_image, cv2.COLOR_RGB2BGR)
             cv2.imshow('Hand Landmarks Cam', bgr_image)
             frame_timestamp += int(1000 / 30.0)
